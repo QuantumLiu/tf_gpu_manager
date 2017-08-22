@@ -108,7 +108,7 @@ if check_gpus():
                 return sorted(self.gpus,key=lambda d:d[key],reverse=reverse)
             if isinstance(key,type(lambda a:a)):
                 return sorted(self.gpus,key=key,reverse=reverse)
-            raise ValueError("The argument 'key' must be a function or a key in query args")
+            raise ValueError("The argument 'key' must be a function or a key in query args,please read the documention of nvidia-smi")
 
         def auto_choice(self,mode=0):
             '''
@@ -135,22 +135,4 @@ if check_gpus():
             print('Using GPU {i}:\n{info}'.format(i=index,info='\n'.join([str(k)+':'+str(v) for k,v in chosen_gpu.items()])))
             return tf.device('/gpu:{}'.format(index))
 else:
-    def parse(line,qargs):
-        raise ImportError('GPU available chek failed')
-    def query_gpu(qargs=[]):
-        raise ImportError('GPU available chek failed')    
-    class GPUManager():
-        raise ImportError('GPU available chek failed')
-        def __init__(self,qargs=[]):
-            raise ImportError('GPU available chek failed')
-        def sort_by_memory(self,by_size=False,qargs=[]):
-            raise ImportError('GPU available chek failed')
-    
-        def sort_by_power(self,qargs=[]):
-            raise ImportError('GPU available chek failed')
-        
-        def sort_by_cust(self,key,qargs=[],reverse=False):
-            raise ImportError('GPU available chek failed')
-
-        def auto_choice(self,mode=0):
-            raise ImportError('GPU available chek failed')
+    raise ImportError('GPU available check failed')
