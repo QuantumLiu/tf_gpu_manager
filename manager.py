@@ -62,7 +62,7 @@ if check_gpus():
         results = os.popen(cmd).readlines()
         return [parse(line,qargs) for line in results]
     
-    def power(d):
+    def by_power(d):
         '''
         helper function fo sorting gpus by power
         '''
@@ -77,37 +77,37 @@ if check_gpus():
         qargs:
             query arguments
         A manager which can list all available GPU devices
-        and sort them and choice the most free one.
+        and sort them and choice the most free one.Unspecified 
+        ones pref.
         GPU设备管理器，考虑列举出所有可用GPU设备，并加以排序，自动选出
-        最空闲的设备。
+        最空闲的设备。在一个GPUManager对象内会记录每个GPU是否已被指定，
+        优先选择未指定的GPU。
         '''
         def __init__(self,qargs=[]):
             '''
             '''
             self.qargs=qargs
             self.gpus=query_gpu(qargs)
+            for gpu in self.gpus:
+                gpu['specified']=False
             self.gpu_num=len(self.gpus)
     
-        def sort_by_memory(self,by_size=False,qargs=[]):
-            self.gpus=query_gpu(self.qargs+qargs)
+        def _sort_by_memory(self,gpus,by_size=False):
             if by_size:
                 print('Sorted by free memory size')
-                return sorted(self.gpus,key=lambda d:d['memory.free'],reverse=True)
+                return sorted(gpus,key=lambda d:d['memory.free'],reverse=True)
             else:
                 print('Sorted by free memory rate')
-                return sorted(self.gpus,key=lambda d:float(d['memory.free'])/ d['memory.total'],reverse=True)
+                return sorted(gpus,key=lambda d:float(d['memory.free'])/ d['memory.total'],reverse=True)
     
-        def sort_by_power(self,qargs=[]):
-            self.gpus=query_gpu(self.qargs+qargs)
-            return sorted(self.gpus,key=power)
+        def _sort_by_power(self,gpus):
+            return sorted(gpus,key=by_power)
         
-        def sort_by_cust(self,key,qargs=[],reverse=False):
-            qargs=self.qargs+qargs
-            self.gpus=query_gpu(qargs)
+        def _sort_by_custom(self,gpus,key,reverse=False,qargs=[]):
             if isinstance(key,str) and (key in qargs):
-                return sorted(self.gpus,key=lambda d:d[key],reverse=reverse)
+                return sorted(gpus,key=lambda d:d[key],reverse=reverse)
             if isinstance(key,type(lambda a:a)):
-                return sorted(self.gpus,key=key,reverse=reverse)
+                return sorted(gpus,key=key,reverse=reverse)
             raise ValueError("The argument 'key' must be a function or a key in query args,please read the documention of nvidia-smi")
 
         def auto_choice(self,mode=0):
@@ -116,21 +116,27 @@ if check_gpus():
                 0:(default)sorted by free memory size
             return:
                 a TF device object
-            Auto choice the freest GPU device
+            Auto choice the freest GPU device,not specified
+            ones 
             自动选择最空闲GPU
             '''
+            for old_infos,new_infos in zip(self.gpus,query_gpu(self.qargs)):
+                old_infos.update(new_infos)
+            unspecified_gpus=[gpu for gpu in self.gpus if not gpu['specified']] or self.gpus
+            
             if mode==0:
                 print('Choosing the GPU device has largest free memory...')
-                chosen_gpu=self.sort_by_memory(True)[0]
+                chosen_gpu=self._sort_by_memory(unspecified_gpus,True)[0]
             elif mode==1:
                 print('Choosing the GPU device has highest free memory rate...')
-                chosen_gpu=self.sort_by_power()[0]
+                chosen_gpu=self._sort_by_power(unspecified_gpus)[0]
             elif mode==2:
                 print('Choosing the GPU device by power...')
-                chosen_gpu=self.sort_by_power()[0]
+                chosen_gpu=self._sort_by_power(unspecified_gpus)[0]
             else:
                 print('Given an unaviliable mode,will be chosen by memory')
-                chosen_gpu=self.sort_by_memory()[0]
+                chosen_gpu=self._sort_by_memory(unspecified_gpus)[0]
+            chosen_gpu['specified']=True
             index=chosen_gpu['index']
             print('Using GPU {i}:\n{info}'.format(i=index,info='\n'.join([str(k)+':'+str(v) for k,v in chosen_gpu.items()])))
             return tf.device('/gpu:{}'.format(index))
